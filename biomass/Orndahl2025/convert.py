@@ -8,9 +8,9 @@ def geotiff_to_netcdf(biomass_tif, landfrac_tif, netcdf_file, resolution):
     with rasterio.open(biomass_tif) as dataset:
         # Read metadata and band data
         transform = dataset.transform
-        band1_data = dataset.read(1)  
+        biomass_data = dataset.read(1)  
         nodata_value = dataset.nodata  
-        height, width = band1_data.shape  
+        height, width = biomass_data.shape  
         print(transform)
         # We will access individual coefficients from the transform to
         # assemble coordinates
@@ -35,7 +35,7 @@ def geotiff_to_netcdf(biomass_tif, landfrac_tif, netcdf_file, resolution):
 
         # Replace NoData values with np.nan for consistency
         if nodata_value is not None:
-            band1_data = np.where(band1_data == nodata_value, np.nan, band1_data)
+            biomass_data = np.where(biomass_data == nodata_value, np.nan, biomass_data)
 
     # read landfrac data
     # assuming the landfrac has same size and extent as biomass but
@@ -85,12 +85,16 @@ def geotiff_to_netcdf(biomass_tif, landfrac_tif, netcdf_file, resolution):
         if nodata_value_landfrac is not None:
             landfrac_var.setncatts({"_FillValue": np.float32(np.nan)})
 
+        # create a mask using landfrac 
+        mask = (landfrac_data > 0 ) & (~np.isnan(landfrac_data))
+        biomass_data = biomass_data[mask]
+
         # Assign data to NetCDF variables
         lat_var[:] = lat_vals
         lon_var[:] = lon_vals
         lat_bnds_var[:, :] = lat_bounds
         lon_bnds_var[:, :] = lon_bounds
-        biomass_var[:, :] = band1_data
+        biomass_var[:, :] = biomass_data
         landfrac_var[:, :] = landfrac_data
 
         # Add metadata
